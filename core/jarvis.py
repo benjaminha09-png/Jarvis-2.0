@@ -1,23 +1,30 @@
+from brain import Brain
+
+
 class Jarvis:
     def __init__(self):
         self.name = "JARVIS"
         self.version = "2.0"
+        self.brain = Brain()
 
     def respond(self, message):
-        return f"{self.name}: Recibí tu mensaje: {message}"
+        return self.brain.think(message)
 
 
 if __name__ == "__main__":
     jarvis = Jarvis()
 
-    print("JARVIS 2.0 iniciado.")
-    print("Escribe 'salir' para terminar.")
+    print("================================")
+    print("       JARVIS 2.0 ONLINE")
+    print("================================")
+    print("Escribe 'salir' para apagarlo.\n")
 
     while True:
         message = input("Tú: ")
 
         if message.lower() in ["salir", "exit", "quit"]:
-            print("JARVIS: Hasta luego.")
+            print("JARVIS: Apagando sistemas.")
             break
 
-        print(jarvis.respond(message))
+        response = jarvis.respond(message)
+        print(f"JARVIS: {response}")
