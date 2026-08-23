@@ -17,7 +17,8 @@ if __name__ == "__main__":
     print("================================")
     print("       JARVIS 2.0 ONLINE")
     print("================================")
-    print("Escribe 'salir' para apagarlo.\n")
+    print("Escribe 'salir' para apagarlo.")
+    print()
 
     while True:
         message = input("Tú: ")
