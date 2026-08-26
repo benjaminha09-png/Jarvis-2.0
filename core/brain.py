@@ -4,7 +4,11 @@ from google import genai
 class Brain:
     def __init__(self):
         self.client = genai.Client()
-        self.model = "gemini-3.6-flash"
+        self.models = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+]
         self.previous_interaction_id = None
 
     def think(self, message):
