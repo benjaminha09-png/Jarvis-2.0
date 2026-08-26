@@ -26,4 +26,12 @@ class Brain:
             return interaction.output_text
 
         except Exception as error:
-            return f"JARVIS tuvo un problema al conectarse con su núcleo: {error}"
+            error_text = str(error)
+
+            if "429" in error_text or "quota" in error_text.lower():
+                return (
+                    "He alcanzado temporalmente el límite de solicitudes "
+                    "de mi núcleo de inteligencia. Intenta de nuevo más tarde."
+                )
+
+            return f"Encontré un problema en mi núcleo: {error_text}"
