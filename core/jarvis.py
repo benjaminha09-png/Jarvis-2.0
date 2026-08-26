@@ -22,22 +22,33 @@ if __name__ == "__main__":
     print("================================")
     print("       JARVIS 2.0 ONLINE")
     print("================================")
-    print("Di o escribe 'Hola JARVIS' o 'JARVIS' para activarme.")
+    print("Escribe 'Jarvis' o 'Hola Jarvis' para activarme.")
     print()
 
     while True:
         message = input("Tú: ").strip()
+        command = message.lower()
 
-        if message.lower() in ["salir", "exit", "quit"]:
+        # Apagar completamente JARVIS
+        if command in ["salir", "exit", "quit"]:
             print("JARVIS: Apagando sistemas.")
             break
 
-        # JARVIS está esperando la palabra de activación
+        # Desactivar JARVIS
+        if command in ["adios jarvis", "adiós jarvis", "bye jarvis"]:
+            if jarvis.active:
+                jarvis.active = False
+                print("JARVIS: Hasta luego, Benja.")
+            else:
+                print("JARVIS: Ya estoy en modo de espera.")
+            continue
+
+        # Activar JARVIS
         if not jarvis.active:
-            if message.lower() in ["jarvis", "hola jarvis"]:
+            if command in ["jarvis", "hola jarvis"]:
                 print(f"JARVIS: {jarvis.activate()}")
             continue
 
-        # Una vez activado, responde normalmente
+        # JARVIS está activo y puede responder
         response = jarvis.respond(message)
         print(f"JARVIS: {response}")
