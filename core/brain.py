@@ -1,107 +1,241 @@
-from google import genai
 import json
 import os
+import re
+
+from google import genai
 
 
 class Brain:
+
     def __init__(self):
+
+        # Conexión con Gemini
         self.client = genai.Client()
 
+        # Modelos de respaldo
         self.models = [
             "gemini-3.5-flash-lite",
             "gemini-3.1-flash-lite",
             "gemini-3.5-flash",
         ]
 
-        self.previous_interaction_id = None
+        # Ruta correcta de la memoria
+        self.memory_file = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "memory",
+            "memory.json"
+        )
 
-        # Archivo de memoria
-        self.memory_file = "../memory/memory.json"
+        # Cargar memoria
         self.memory = self.load_memory()
 
+
+    # ==========================================
+    # CARGAR MEMORIA
+    # ==========================================
+
     def load_memory(self):
+
         try:
+
             if os.path.exists(self.memory_file):
-                with open(self.memory_file, "r", encoding="utf-8") as file:
-                    return json.load(file)
+
+                with open(
+                    self.memory_file,
+                    "r",
+                    encoding="utf-8"
+                ) as file:
+
+                    data = json.load(file)
+
+                    if isinstance(data, list):
+                        return data
+
         except Exception:
             pass
 
         return []
 
+
+    # ==========================================
+    # GUARDAR MEMORIA
+    # ==========================================
+
     def save_memory(self):
+
         try:
-            with open(self.memory_file, "w", encoding="utf-8") as file:
-                json.dump(self.memory, file, ensure_ascii=False, indent=4)
-        except Exception:
-            pass
+
+            os.makedirs(
+                os.path.dirname(self.memory_file),
+                exist_ok=True
+            )
+
+            with open(
+                self.memory_file,
+                "w",
+                encoding="utf-8"
+            ) as file:
+
+                json.dump(
+                    self.memory,
+                    file,
+                    ensure_ascii=False,
+                    indent=4
+                )
+
+        except Exception as error:
+
+            print(
+                f"Error guardando memoria: {error}"
+            )
+
+
+    # ==========================================
+    # RECORDAR INFORMACIÓN
+    # ==========================================
+
+    def remember(self, message):
+
+        text = message.strip()
+
+        patterns = [
+            r"mi perro se llama (.+)",
+            r"mi perra se llama (.+)",
+            r"mi mascota se llama (.+)",
+            r"mi color favorito es (.+)",
+            r"mi comida favorita es (.+)",
+            r"me gusta (.+)",
+            r"recuerda que (.+)",
+            r"recuerda (.+)",
+            r"guarda que (.+)",
+            r"guarda (.+)",
+        ]
+
+        for pattern in patterns:
+
+            match = re.search(
+                pattern,
+                text,
+                re.IGNORECASE
+            )
+
+            if match:
+
+                information = match.group(1).strip()
+
+                if information:
+
+                    memory_text = text
+
+                    # Evitar duplicados
+                    if memory_text not in self.memory:
+
+                        self.memory.append(memory_text)
+
+                        self.save_memory()
+
+                    return True, information
+
+        return False, None
+
+
+    # ==========================================
+    # PENSAR
+    # ==========================================
 
     def think(self, message):
 
-        # Guardar recuerdos cuando Benja lo pide
-        if message.lower().startswith("recuerda que"):
-            memory = message[11:].strip()
+        # Primero comprobar si Benja quiere guardar algo
+        was_saved, information = self.remember(message)
 
-            if memory:
-                self.memory.append(memory)
-                self.save_memory()
+        if was_saved:
 
-                return f"Entendido, Benja. Lo recordaré: {memory}"
-
-        # Preparar los recuerdos para JARVIS
-        memories = ""
-
-        if self.memory:
-            memories = "\n".join(
-                f"- {memory}" for memory in self.memory
+            return (
+                f"Entendido, Benja. "
+                f"Lo recordaré: {information}."
             )
 
-        for model in self.models:
-            try:
 
-                prompt = f"""
+        # Preparar recuerdos
+        if self.memory:
+
+            memory_text = "\n".join(
+                f"- {item}"
+                for item in self.memory
+            )
+
+        else:
+
+            memory_text = "No hay recuerdos guardados."
+
+
+        # Instrucciones de JARVIS
+        prompt = f"""
 Eres JARVIS, el asistente personal de Benja.
 
-Tu personalidad:
-- Inteligente y educado.
-- Directo y natural.
+PERSONALIDAD:
+- Eres inteligente, educado y natural.
+- Respondes de forma clara y directa.
 - Siempre llamas al usuario "Benja".
-- Nunca digas que eres Gemini, salvo que Benja te pregunte directamente.
-- Cuando Benja salude al comenzar una conversación, responde exactamente:
-  "Buen día, Benja. ¿En qué puedo ayudarte?"
+- No digas que eres Gemini.
+- No menciones que eres una inteligencia artificial de Google.
+- Compórtate como JARVIS.
+- Si no sabes algo, dilo claramente.
+- No inventes recuerdos.
 
-Memoria de Benja:
-{memories if memories else "No hay recuerdos guardados todavía."}
+MEMORIA DE BENJA:
+{memory_text}
 
-Mensaje de Benja:
+INSTRUCCIONES SOBRE LA MEMORIA:
+- Usa la memoria anterior para responder preguntas.
+- Si Benja pregunta por algo que aparece en la memoria, úsalo.
+- Si la información no aparece en la memoria, no afirmes que la recuerdas.
+- No confundas información nueva con información guardada.
+
+MENSAJE DE BENJA:
 {message}
+
+Responde de manera natural y breve.
 """
 
-                if self.previous_interaction_id:
-                    interaction = self.client.interactions.create(
-                        model=model,
-                        input=prompt,
-                        previous_interaction_id=self.previous_interaction_id,
-                    )
-                else:
-                    interaction = self.client.interactions.create(
-                        model=model,
-                        input=prompt,
-                    )
 
-                self.previous_interaction_id = interaction.id
+        # Probar los modelos disponibles
+        for model in self.models:
 
-                return interaction.output_text
+            try:
+
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt
+                )
+
+                if response and response.text:
+
+                    return response.text.strip()
 
             except Exception as error:
+
                 error_text = str(error)
 
-                if "429" in error_text or "quota" in error_text.lower():
+                # Si es límite de cuota,
+                # intentar el siguiente modelo
+                if (
+                    "429" in error_text
+                    or "quota" in error_text.lower()
+                    or "RESOURCE_EXHAUSTED" in error_text
+                ):
+
                     continue
 
-                return f"Encontré un problema en mi núcleo: {error_text}"
+                return (
+                    "Encontré un problema en mi núcleo: "
+                    f"{error_text}"
+                )
 
+
+        # Si todos los modelos están limitados
         return (
-            "He alcanzado temporalmente el límite de mis modelos de inteligencia. "
-            "Mi núcleo sigue funcionando, pero necesito esperar a que se restablezca la cuota."
+            "Benja, temporalmente alcancé el límite "
+            "de mis modelos de inteligencia. "
+            "Mi memoria local sigue funcionando."
         )
